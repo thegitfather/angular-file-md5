@@ -1,96 +1,96 @@
 (function(){
-	'use strict';
+  'use strict';
 
-	angular.module('ljungmann.fileMd5', [])
-	.provider('fileMd5Service', [function() {
+  angular.module('ljungmann.fileMd5', [])
+  .provider('fileMd5Service', [function() {
 
-		var settings = {
-			chunkSize: 2097152 // 2 MB
-		};
+    var settings = {
+      chunkSize: 2097152 // 2 MB
+    };
 
-		this.configure = function(additionalSettings) {
-			angular.extend(settings, additionalSettings);
+    this.configure = function(additionalSettings) {
+      angular.extend(settings, additionalSettings);
 
-			return this;
-		};
-		
-		this.$get = ['$q', function($q) {
+      return this;
+    };
 
-			return {
-				md5: function(file) {
-					var slicer = File.prototype.slice || File.prototype.mozSlice || File.prototype.webkitSlice;
-					var currentChunk = 0;
-					var chunks = Math.ceil(file.size / settings.chunkSize);
+    this.$get = ['$q', function($q) {
 
-					var spark = new SparkMD5.ArrayBuffer();
+      return {
+        md5: function(file) {
+          var slicer = File.prototype.slice || File.prototype.mozSlice || File.prototype.webkitSlice;
+          var currentChunk = 0;
+          var chunks = Math.ceil(file.size / settings.chunkSize);
 
-					var deferred = $q.defer();
-					var promise = deferred.promise;
+          var spark = new SparkMD5.ArrayBuffer();
 
-					var onLoadFn = function(event) {
-						spark.append(event.target.result);
+          var deferred = $q.defer();
+          var promise = deferred.promise;
 
-						deferred.notify({
-							loaded: currentChunk * settings.chunkSize + event.loaded,
-							total: file.size
-						});
+          var onLoadFn = function(event) {
+            spark.append(event.target.result);
 
-						currentChunk++;
-						if (currentChunk < chunks) {
-							loadData();
-						} else {
-							var md5sum = spark.end();
-							deferred.resolve(md5sum);
-						}
-					};
+            deferred.notify({
+              loaded: currentChunk * settings.chunkSize + event.loaded,
+              total: file.size
+            });
 
-					var onErrorFn = function (error) {
-						deferred.reject(error);
-					};
+            currentChunk++;
+            if (currentChunk < chunks) {
+              loadData();
+            } else {
+              var md5sum = spark.end();
+              deferred.resolve(md5sum);
+            }
+          };
 
-					var loadData = function() {
-						var fileReader = new FileReader();
-						fileReader.onload = onLoadFn;
-						fileReader.onerror = onErrorFn;
+          var onErrorFn = function (error) {
+            deferred.reject(error);
+          };
 
-						var start = currentChunk * settings.chunkSize;
-						var end = ((start + settings.chunkSize) >= file.size) ? file.size : start + settings.chunkSize;
+          var loadData = function() {
+            var fileReader = new FileReader();
+            fileReader.onload = onLoadFn;
+            fileReader.onerror = onErrorFn;
 
-						fileReader.readAsArrayBuffer(slicer.call(file, start, end));
-					};
+            var start = currentChunk * settings.chunkSize;
+            var end = ((start + settings.chunkSize) >= file.size) ? file.size : start + settings.chunkSize;
 
-					promise.success = function(fn) {
-						promise.then(function(md5sum) {
-							fn(md5sum);
-						});
+            fileReader.readAsArrayBuffer(slicer.call(file, start, end));
+          };
 
-						return promise;
-					};
+          promise.success = function(fn) {
+            promise.then(function(md5sum) {
+              fn(md5sum);
+            });
 
-					promise.error = function(fn) {
-						promise.then(null, function(error) {
-							fn(error);
-						});
+            return promise;
+          };
 
-						return promise;
-					};
+          promise.error = function(fn) {
+            promise.then(null, function(error) {
+              fn(error);
+            });
 
-					promise.progress = function(fn) {
-						promise.then(null, null, function(stats) {
-							fn(stats);
-						});
+            return promise;
+          };
 
-						return promise;
-					};
+          promise.progress = function(fn) {
+            promise.then(null, null, function(stats) {
+              fn(stats);
+            });
 
-					loadData();
+            return promise;
+          };
 
-					return promise;
-				}
-			};
+          loadData();
 
-		}];
+          return promise;
+        }
+      };
 
-	}]);
+    }];
+
+  }]);
 
 })();
